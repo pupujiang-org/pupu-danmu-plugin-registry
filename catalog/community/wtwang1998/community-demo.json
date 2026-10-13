@@ -1,0 +1,29 @@
+{
+  "manifest": {
+    "schema_version": 1,
+    "id": "org.wtwang1998.community-demo",
+    "name": "Community Audience Demo",
+    "version": "0.0.1",
+    "description": "A small data-only community plugin with one generic audience persona and topic tags.",
+    "author": "wtwang1998",
+    "license": "MIT",
+    "min_host_version": "0.5.0b3",
+    "kind": "ai-participation",
+    "runtime_type": "declarative",
+    "plugin_api_version": 1,
+    "capabilities": ["persona", "topic_hints"],
+    "config_schema": {},
+    "recommended_pacing": {
+      "min_interval_seconds": 90,
+      "max_interval_seconds": 300,
+      "hourly_limit": 20
+    },
+    "resources": {
+      "personas": "personas.json",
+      "topics": "topics.json"
+    }
+  },
+  "package_url": "https://github.com/wtwang1998/pupu-danmu-plugin-community-demo/releases/download/community-demo-v0.0.1/community-demo-0.0.1.zip",
+  "sha256": "cafe9828c758cde66b5eafecabee3d8796a58416385b685cca420225252230ca",
+  "package_size": 1914
+}
