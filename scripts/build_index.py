@@ -77,6 +77,10 @@ ALLOWED_REDIRECT_HOSTS = {
     "release-assets.githubusercontent.com",
     "objects.githubusercontent.com",
 }
+OFFICIAL_PLUGIN_RELEASE_REPOSITORIES = {
+    "org.pupujiang.fabric-buyer": "pupu-danmu-plugin-fabric-buyer",
+    "org.pupujiang.music-audience": "pupu-danmu-plugin-music-audience",
+}
 
 
 class ValidationError(ValueError):
@@ -434,15 +438,21 @@ def _validate_release_url(
         raise ValidationError("Release URL does not match plugin id and version")
     relative = path.relative_to(CATALOG_ROOT).parts
     if origin == "official":
+        official_repository = OFFICIAL_PLUGIN_RELEASE_REPOSITORIES.get(plugin_id)
         if (
             relative[0] != "official"
             or owner != "pupujiang-org"
-            or repository != "pupu-danmu-plugins"
+            or official_repository is None
+            or repository != official_repository
         ):
             raise ValidationError(
                 "official entry must use the official plugin Release source"
             )
     else:
+        if plugin_id in OFFICIAL_PLUGIN_RELEASE_REPOSITORIES:
+            raise ValidationError(
+                "official plugin id cannot be submitted as a community entry"
+            )
         if (
             len(relative) != 3
             or relative[0] != "community"
