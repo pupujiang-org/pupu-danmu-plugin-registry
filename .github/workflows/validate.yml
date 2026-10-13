@@ -13,5 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Test official plugin source ownership
+        run: python3 scripts/tests/test_build_index.py
       - name: Validate metadata and static Release assets
         run: python3 scripts/build_index.py --check --verify-assets

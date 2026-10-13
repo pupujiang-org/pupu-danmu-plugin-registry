@@ -1,0 +1,2 @@
+# Catalog metadata is text: keep LF so published index bytes are stable.
+* text=auto eol=lf
