@@ -1,0 +1,17 @@
+name: Validate plugin Catalog
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Validate metadata and static Release assets
+        run: python3 scripts/build_index.py --check --verify-assets
