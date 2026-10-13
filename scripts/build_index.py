@@ -15,6 +15,7 @@ import urllib.request
 import zipfile
 from datetime import UTC
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 from pathlib import PurePosixPath
 from urllib.parse import urlsplit
@@ -36,6 +37,16 @@ SEMVER = re.compile(
     rf"(?:-({SEMVER_IDENTIFIER}(?:\.{SEMVER_IDENTIFIER})*))?"
     r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
 )
+MIT_LICENSE = "MIT"
+SPDX_DATA_PATH = Path(__file__).resolve().with_name("spdx-license-ids.json")
+SPDX_TOKEN = re.compile(r"[()]|[^\s()]+")
+SPDX_LICENSE_REF = re.compile(
+    r"^(?:DocumentRef-[A-Za-z0-9.-]+:)?LicenseRef-[A-Za-z0-9.-]+$"
+)
+SPDX_OPERATORS = {"and", "or"}
+SPDX_WITH = "with"
+SPDX_UNKNOWN = {"none", "noassertion"}
+SPDX_OPERATOR_TOKENS = SPDX_OPERATORS | {SPDX_WITH}
 TOP_LEVEL_MANIFEST_FIELDS = {
     "schema_version",
     "id",
@@ -99,6 +110,111 @@ def _read_json(path: Path, *, maximum_bytes: int) -> object:
         raise ValidationError(f"invalid UTF-8 JSON: {path.relative_to(ROOT)}") from None
 
 
+@lru_cache(maxsize=1)
+def _spdx_identifiers() -> tuple[dict[str, str], dict[str, str]]:
+    """Casefolded known SPDX license and exception identifiers."""
+    try:
+        payload = SPDX_DATA_PATH.read_bytes()
+    except OSError:
+        raise ValidationError("the vendored SPDX identifier list is missing") from None
+    try:
+        data = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError):
+        raise ValidationError("the vendored SPDX identifier list is invalid") from None
+    if not isinstance(data, dict):
+        raise ValidationError("the vendored SPDX identifier list is invalid")
+    licenses = data.get("license_ids")
+    exceptions = data.get("exception_ids")
+    if (
+        not isinstance(licenses, list)
+        or not isinstance(exceptions, list)
+        or not licenses
+        or not all(isinstance(item, str) and item for item in licenses)
+        or not all(isinstance(item, str) and item for item in exceptions)
+    ):
+        raise ValidationError("the vendored SPDX identifier list is invalid")
+    return (
+        {item.casefold(): item for item in licenses},
+        {item.casefold(): item for item in exceptions},
+    )
+
+
+def _validate_declared_license(value: str) -> None:
+    """Require a resolvable SPDX license expression; NONE/NOASSERTION are not a license."""
+    licenses, exceptions = _spdx_identifiers()
+    tokens = SPDX_TOKEN.findall(value)
+    if not tokens:
+        raise ValidationError("Manifest license is empty")
+    position = 0
+
+    def take() -> str | None:
+        nonlocal position
+        if position >= len(tokens):
+            return None
+        token = tokens[position]
+        position += 1
+        return token
+
+    def parse_simple() -> bool:
+        token = take()
+        if token is None:
+            raise ValidationError("Manifest license is incomplete")
+        if token == "(":
+            parse_expression()
+            if take() != ")":
+                raise ValidationError("Manifest license has unbalanced parentheses")
+            return False
+        if token == ")" or token.casefold() in SPDX_OPERATOR_TOKENS:
+            raise ValidationError("Manifest license is malformed")
+        identifier = token[:-1] if token.endswith("+") and token != "+" else token
+        if identifier.casefold() in SPDX_UNKNOWN:
+            raise ValidationError(
+                "Manifest license must be a declared SPDX license, not NONE or NOASSERTION"
+            )
+        if SPDX_LICENSE_REF.fullmatch(identifier) is None and (
+            identifier.casefold() not in licenses
+        ):
+            raise ValidationError(
+                f"Manifest license has an unknown SPDX identifier: {identifier}"
+            )
+        return True
+
+    def parse_term() -> None:
+        nonlocal position
+        simple = parse_simple()
+        if position < len(tokens) and tokens[position].casefold() == SPDX_WITH:
+            if not simple:
+                raise ValidationError(
+                    "Manifest license WITH must follow one license identifier"
+                )
+            position += 1
+            exception = take()
+            if (
+                exception is None
+                or exception == ")"
+                or exception.casefold() in SPDX_OPERATOR_TOKENS
+            ):
+                raise ValidationError("Manifest license WITH is incomplete")
+            if (
+                SPDX_LICENSE_REF.fullmatch(exception) is None
+                and exception.casefold() not in exceptions
+            ):
+                raise ValidationError(
+                    f"Manifest license has an unknown SPDX exception: {exception}"
+                )
+
+    def parse_expression() -> None:
+        nonlocal position
+        parse_term()
+        while position < len(tokens) and tokens[position].casefold() in SPDX_OPERATORS:
+            position += 1
+            parse_term()
+
+    parse_expression()
+    if position != len(tokens):
+        raise ValidationError("Manifest license has trailing content")
+
+
 def _validate_manifest(value: object) -> dict[str, object]:
     if not isinstance(value, dict) or set(value) != TOP_LEVEL_MANIFEST_FIELDS:
         raise ValidationError("Manifest fields are missing or unsupported")
@@ -120,6 +236,7 @@ def _validate_manifest(value: object) -> dict[str, object]:
         text = value[field]
         if not isinstance(text, str) or not text.strip() or len(text) > maximum:
             raise ValidationError(f"Manifest {field} is invalid")
+    _validate_declared_license(value["license"])
     if value["kind"] != "ai-participation":
         raise ValidationError("unsupported plugin kind")
     if value["runtime_type"] != "declarative":
@@ -351,6 +468,10 @@ def _entry(path: Path, origin: str, *, verify_assets: bool) -> dict[str, object]
             f"Catalog entry fields are invalid: {path.relative_to(ROOT)}"
         )
     manifest = _validate_manifest(raw["manifest"])
+    if origin == "official" and manifest["license"] != MIT_LICENSE:
+        raise ValidationError(
+            f"official Catalog entries must declare the {MIT_LICENSE} license"
+        )
     package_url = _validate_release_url(
         raw["package_url"], origin=origin, manifest=manifest, path=path
     )

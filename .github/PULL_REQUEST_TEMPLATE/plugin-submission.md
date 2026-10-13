@@ -5,6 +5,7 @@
 - [ ] The Release URL is immutable and the byte size/SHA-256 match the ZIP.
 - [ ] The full Manifest matches schema v1 and requests only supported capabilities.
 - [ ] The package contains only static allowlisted data and documentation.
+- [ ] The license in the Manifest is the license the package is actually published under: `MIT` for an official entry, a known SPDX identifier or expression for a community entry.
 - [ ] The license and publisher identity/control evidence are included for maintainer review.
 - [ ] I ran `python scripts/build_index.py --check --verify-assets`.
 
