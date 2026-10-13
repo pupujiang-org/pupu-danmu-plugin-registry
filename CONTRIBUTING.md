@@ -1,5 +1,7 @@
 # Catalog submission and review
 
+Read the host's [plugin developer guide](https://github.com/pupujiang-org/pupu-danmu/blob/main/docs/public/plugin-development.md) before preparing a Catalog entry. It describes the current Manifest v1 capabilities and the host's package-validation boundary.
+
 ## Submit an entry
 
 1. Publish an immutable versioned ZIP from the plugin source owner's GitHub Release. Do not upload the ZIP or source to this registry.

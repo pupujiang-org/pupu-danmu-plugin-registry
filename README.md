@@ -2,6 +2,8 @@
 
 This repository contains only plugin Catalog metadata, JSON schemas, validation tooling, and the generated GitHub Pages index. It must never contain plugin source code or ZIP packages. Official package source and immutable Release assets belong in [`pupu-danmu-plugins`](https://github.com/pupujiang-org/pupu-danmu-plugins); community authors publish packages from their own repositories.
 
+The host's [plugin developer guide](https://github.com/pupujiang-org/pupu-danmu/blob/main/docs/public/plugin-development.md) documents the accepted Manifest v1 behavior, package limits, license requirements and install flow.
+
 The public index is served at:
 
 `https://pupujiang-org.github.io/pupu-danmu-plugin-registry/v1/index.json`
