@@ -1,7 +1,117 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-13T09:15:42Z",
+  "generated_at": "2026-10-14T05:45:53Z",
   "plugins": [
+    {
+      "origin": "official",
+      "manifest": {
+        "schema_version": 1,
+        "id": "org.pupujiang.fabric-buyer",
+        "name": "布料买家",
+        "version": "1.0.0",
+        "description": "布料直播场景的官方声明式角色与主题资源包。",
+        "author": "pupujiang",
+        "license": "MIT",
+        "min_host_version": "0.5.0b3",
+        "kind": "ai-participation",
+        "runtime_type": "declarative",
+        "plugin_api_version": 1,
+        "capabilities": [
+          "chat_context",
+          "host_llm",
+          "persona",
+          "topic_hints"
+        ],
+        "config_schema": {
+          "persona": {
+            "type": "select",
+            "label": "观众角色",
+            "description": "仅在当前会话中使用。",
+            "required": true,
+            "options": [
+              "maker",
+              "buyer"
+            ],
+            "default": "maker"
+          },
+          "allow_initiative": {
+            "type": "checkbox",
+            "label": "允许主动开启话题",
+            "default": true
+          }
+        },
+        "recommended_pacing": {
+          "min_interval_seconds": 90,
+          "max_interval_seconds": 300,
+          "hourly_limit": 20
+        },
+        "resources": {
+          "personas": "personas.json",
+          "topics": "topics.json",
+          "prompt": "prompts/context.md"
+        }
+      },
+      "package_url": "https://github.com/pupujiang-org/pupu-danmu-plugin-fabric-buyer/releases/download/fabric-buyer-v1.0.0/fabric-buyer-1.0.0.zip",
+      "sha256": "32b43825544731f542a145531ae73f1f9c155e1d48801be48ec84298b69b26e2",
+      "package_size": 2699
+    },
+    {
+      "origin": "official",
+      "manifest": {
+        "schema_version": 1,
+        "id": "org.pupujiang.music-audience",
+        "name": "音乐观众",
+        "version": "1.0.0",
+        "description": "音乐直播场景的官方声明式角色与主题资源包。",
+        "author": "pupujiang",
+        "license": "MIT",
+        "min_host_version": "0.5.0b3",
+        "kind": "ai-participation",
+        "runtime_type": "declarative",
+        "plugin_api_version": 1,
+        "capabilities": [
+          "chat_context",
+          "host_llm",
+          "persona",
+          "topic_hints"
+        ],
+        "config_schema": {
+          "persona": {
+            "type": "select",
+            "label": "观众角色",
+            "required": true,
+            "options": [
+              "listener",
+              "musician"
+            ],
+            "default": "listener"
+          },
+          "focus": {
+            "type": "select",
+            "label": "讨论偏好",
+            "options": [
+              "performance",
+              "instruments",
+              "genre"
+            ],
+            "default": "performance"
+          }
+        },
+        "recommended_pacing": {
+          "min_interval_seconds": 90,
+          "max_interval_seconds": 300,
+          "hourly_limit": 20
+        },
+        "resources": {
+          "personas": "personas.json",
+          "topics": "topics.json",
+          "prompt": "prompts/context.md"
+        }
+      },
+      "package_url": "https://github.com/pupujiang-org/pupu-danmu-plugin-music-audience/releases/download/music-audience-v1.0.0/music-audience-1.0.0.zip",
+      "sha256": "dbcad045e618de5d036e7a325ca6e90ee293fff5d541b085c57854a680e081d3",
+      "package_size": 2512
+    },
     {
       "origin": "community",
       "manifest": {

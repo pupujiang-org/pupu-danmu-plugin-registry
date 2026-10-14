@@ -1,0 +1,56 @@
+{
+  "manifest": {
+    "schema_version": 1,
+    "id": "org.pupujiang.music-audience",
+    "name": "音乐观众",
+    "version": "1.0.0",
+    "description": "音乐直播场景的官方声明式角色与主题资源包。",
+    "author": "pupujiang",
+    "license": "MIT",
+    "min_host_version": "0.5.0b3",
+    "kind": "ai-participation",
+    "runtime_type": "declarative",
+    "plugin_api_version": 1,
+    "capabilities": [
+      "chat_context",
+      "host_llm",
+      "persona",
+      "topic_hints"
+    ],
+    "config_schema": {
+      "persona": {
+        "type": "select",
+        "label": "观众角色",
+        "required": true,
+        "options": [
+          "listener",
+          "musician"
+        ],
+        "default": "listener"
+      },
+      "focus": {
+        "type": "select",
+        "label": "讨论偏好",
+        "options": [
+          "performance",
+          "instruments",
+          "genre"
+        ],
+        "default": "performance"
+      }
+    },
+    "recommended_pacing": {
+      "min_interval_seconds": 90,
+      "max_interval_seconds": 300,
+      "hourly_limit": 20
+    },
+    "resources": {
+      "personas": "personas.json",
+      "topics": "topics.json",
+      "prompt": "prompts/context.md"
+    }
+  },
+  "package_url": "https://github.com/pupujiang-org/pupu-danmu-plugin-music-audience/releases/download/music-audience-v1.0.0/music-audience-1.0.0.zip",
+  "sha256": "dbcad045e618de5d036e7a325ca6e90ee293fff5d541b085c57854a680e081d3",
+  "package_size": 2512
+}
