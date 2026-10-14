@@ -57,10 +57,7 @@ class OfficialReleaseRepositoryTests(unittest.TestCase):
         slug = plugin_id.rsplit(".", 1)[-1]
         manifest = {"id": plugin_id, "version": "1.0.0"}
         path = (
-            build_index.CATALOG_ROOT
-            / "community"
-            / "community-author"
-            / f"{slug}.json"
+            build_index.CATALOG_ROOT / "community" / "community-author" / f"{slug}.json"
         )
         url = (
             "https://github.com/community-author/fabric-buyer/releases/download/"
@@ -71,6 +68,42 @@ class OfficialReleaseRepositoryTests(unittest.TestCase):
             build_index._validate_release_url(
                 url, origin="community", manifest=manifest, path=path
             )
+
+    def test_catalog_contains_both_published_official_releases(self) -> None:
+        entries = build_index._collect_entries(verify_assets=False)
+        official = {
+            entry["manifest"]["id"]: entry
+            for entry in entries
+            if entry["origin"] == "official"
+        }
+        self.assertEqual(
+            set(official),
+            {"org.pupujiang.fabric-buyer", "org.pupujiang.music-audience"},
+        )
+        for plugin_id, repository in (
+            ("org.pupujiang.fabric-buyer", "pupu-danmu-plugin-fabric-buyer"),
+            ("org.pupujiang.music-audience", "pupu-danmu-plugin-music-audience"),
+        ):
+            with self.subTest(plugin_id=plugin_id):
+                entry = official[plugin_id]
+                self.assertIn(repository, entry["package_url"])
+                self.assertRegex(entry["sha256"], build_index.SHA256)
+                self.assertGreater(entry["package_size"], 0)
+
+    def test_generated_index_exposes_official_and_community_origins(self) -> None:
+        index = build_index._load_index(build_index.INDEX_PATH)
+        entries = index["plugins"]
+        self.assertEqual(
+            {entry["origin"] for entry in entries}, {"official", "community"}
+        )
+        self.assertEqual(
+            {entry["manifest"]["id"] for entry in entries},
+            {
+                "org.pupujiang.fabric-buyer",
+                "org.pupujiang.music-audience",
+                "org.wtwang1998.community-demo",
+            },
+        )
 
 
 if __name__ == "__main__":
