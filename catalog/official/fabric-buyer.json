@@ -3,7 +3,7 @@
     "schema_version": 1,
     "id": "org.pupujiang.fabric-buyer",
     "name": "布料买家",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "布料直播场景的官方声明式角色与主题资源包。",
     "author": "pupujiang",
     "license": "MIT",
@@ -46,7 +46,7 @@
       "prompt": "prompts/context.md"
     }
   },
-  "package_url": "https://github.com/pupujiang-org/pupu-danmu-plugin-fabric-buyer/releases/download/fabric-buyer-v1.1.0/fabric-buyer-1.1.0.zip",
-  "sha256": "50c49f277f4d746a0ac83edd9e61211287e52b3745b9a5b9e8d464e021559b0a",
-  "package_size": 3248
+  "package_url": "https://github.com/pupujiang-org/pupu-danmu-plugin-fabric-buyer/releases/download/fabric-buyer-v1.2.0/fabric-buyer-1.2.0.zip",
+  "sha256": "031e7fdbbb9ecf771f3d30618186d7f001ac90794cf72be493adb7c0db518afe",
+  "package_size": 3336
 }
