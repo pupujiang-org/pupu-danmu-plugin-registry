@@ -3,7 +3,7 @@
     "schema_version": 1,
     "id": "org.pupujiang.music-audience",
     "name": "音乐观众",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "音乐直播场景的官方声明式角色与主题资源包。",
     "author": "pupujiang",
     "license": "MIT",
@@ -50,7 +50,7 @@
       "prompt": "prompts/context.md"
     }
   },
-  "package_url": "https://github.com/pupujiang-org/pupu-danmu-plugin-music-audience/releases/download/music-audience-v1.0.0/music-audience-1.0.0.zip",
-  "sha256": "dbcad045e618de5d036e7a325ca6e90ee293fff5d541b085c57854a680e081d3",
-  "package_size": 2512
+  "package_url": "https://github.com/pupujiang-org/pupu-danmu-plugin-music-audience/releases/download/music-audience-v1.1.0/music-audience-1.1.0.zip",
+  "sha256": "2d0840276e723124650b5a70d90e7fe0cc62052ec36eb4d16495b313b9fd6c11",
+  "package_size": 3102
 }
