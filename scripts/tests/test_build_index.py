@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
+import io
 import json
+import stat
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest import mock
 
@@ -33,6 +37,48 @@ OFFICIAL_PLUGIN_ID = "org.pupujiang.fabric-buyer"
 COMMUNITY_PLUGIN_ID = "org.community-author.sample-plugin"
 COMMUNITY_PUBLISHER = "community-author"
 OFFICIAL_MIT_REJECTION = "official Catalog entries must declare the MIT license"
+OFFICIAL_WORKER_ID = "org.pupujiang.synthetic-worker"
+WORKER_MANIFEST: dict[str, object] = {
+    "schema_version": 2,
+    "id": OFFICIAL_WORKER_ID,
+    "name": "Synthetic Worker",
+    "version": "1.0.0",
+    "description": "A neutral synthetic Worker for offline contract tests.",
+    "author": "Pupu Test",
+    "license": "MIT",
+    "min_host_version": "0.5.0b3",
+    "kind": "ai-participation",
+    "runtime_type": "python-worker",
+    "plugin_api_version": 2,
+    "capabilities": ["room.read"],
+    "config_schema": {},
+    "recommended_pacing": {},
+    "resources": {},
+    "entrypoint": "main:run",
+}
+
+
+def _worker_archive(
+    manifest: dict[str, object] | None = None,
+    *,
+    extra_files: dict[str, bytes] | None = None,
+    symlink: bool = False,
+    compression: int = zipfile.ZIP_STORED,
+) -> bytes:
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", compression=compression) as archive:
+        archive.writestr(
+            "manifest.json",
+            json.dumps(manifest or WORKER_MANIFEST, separators=(",", ":")),
+        )
+        archive.writestr("worker/main.py", "def run(context):\n    return None\n")
+        if symlink:
+            info = zipfile.ZipInfo("worker/link.py")
+            info.external_attr = (stat.S_IFLNK | 0o777) << 16
+            archive.writestr(info, "main.py")
+        for name, payload in (extra_files or {}).items():
+            archive.writestr(name, payload)
+    return output.getvalue()
 
 
 class CatalogEntryLicenseTestCase(unittest.TestCase):
@@ -335,6 +381,214 @@ class OfficialReleaseRepositoryTests(unittest.TestCase):
                 "org.wtwang1998.community-demo",
             },
         )
+
+
+class WorkerManifestAndReleaseTests(unittest.TestCase):
+    def test_schema_v2_manifest_is_strict_and_preserves_neutral_metadata(self) -> None:
+        parsed = build_index._validate_worker_manifest(dict(WORKER_MANIFEST))
+
+        self.assertEqual(parsed, WORKER_MANIFEST)
+        for invalid in (
+            {**WORKER_MANIFEST, "unknown": True},
+            {key: value for key, value in WORKER_MANIFEST.items() if key != "entrypoint"},
+            {**WORKER_MANIFEST, "schema_version": 1},
+            {**WORKER_MANIFEST, "runtime_type": "declarative"},
+            {**WORKER_MANIFEST, "plugin_api_version": 1},
+            {**WORKER_MANIFEST, "entrypoint": "../outside:run"},
+            {**WORKER_MANIFEST, "capabilities": ["unknown.capability"]},
+            {**WORKER_MANIFEST, "config_schema": {"bad-field": {"type": "checkbox"}}},
+        ):
+            with self.subTest(invalid=invalid), self.assertRaises(
+                build_index.ValidationError
+            ):
+                build_index._validate_worker_manifest(invalid)
+
+    def test_worker_schemas_are_valid_json_and_pages_include_both_contracts(self) -> None:
+        manifest_schema = json.loads(
+            (build_index.ROOT / "schemas" / "worker-manifest-v2.schema.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        entry_schema = json.loads(
+            (build_index.ROOT / "schemas" / "worker-catalog-entry.schema.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(manifest_schema["properties"]["schema_version"]["const"], 2)
+        self.assertEqual(
+            entry_schema["properties"]["package_size"]["maximum"],
+            build_index.MAX_WORKER_ARCHIVE_BYTES,
+        )
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            site = Path(temporary_dir) / "site"
+            build_index._build_site(site, [], [])
+            self.assertTrue(
+                (site / "schemas" / "worker-manifest-v2.schema.json").is_file()
+            )
+            self.assertTrue(
+                (site / "schemas" / "worker-catalog-entry.schema.json").is_file()
+            )
+
+    def test_official_worker_source_uses_generic_owner_and_repository_rule(self) -> None:
+        slug = OFFICIAL_WORKER_ID.rsplit(".", 1)[-1]
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            catalog_root = Path(temporary_dir)
+            path = catalog_root / "workers" / "official" / f"{slug}.json"
+            url = (
+                f"https://github.com/pupujiang-org/pupu-danmu-plugin-{slug}/releases/"
+                f"download/{slug}-v1.0.0/{slug}-1.0.0.zip"
+            )
+            with mock.patch.object(build_index, "CATALOG_ROOT", catalog_root):
+                accepted = build_index._validate_worker_release_url(
+                    url,
+                    origin="official",
+                    manifest=dict(WORKER_MANIFEST),
+                    path=path,
+                )
+                self.assertEqual(accepted, url)
+                for bad_url in (
+                    url.replace("pupujiang-org", "attacker"),
+                    url.replace("pupu-danmu-plugin-synthetic-worker", "pupu-danmu-plugin-other"),
+                    url.replace("synthetic-worker-v1.0.0", "latest"),
+                ):
+                    with self.subTest(bad_url=bad_url), self.assertRaises(
+                        build_index.ValidationError
+                    ):
+                        build_index._validate_worker_release_url(
+                            bad_url,
+                            origin="official",
+                            manifest=dict(WORKER_MANIFEST),
+                            path=path,
+                        )
+
+    def test_community_worker_cannot_claim_official_namespace(self) -> None:
+        manifest = dict(WORKER_MANIFEST, id="org.community-author.sample-worker")
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            catalog_root = Path(temporary_dir)
+            path = (
+                catalog_root
+                / "workers"
+                / "community"
+                / "community-author"
+                / "sample-worker.json"
+            )
+            url = (
+                "https://github.com/community-author/sample-worker/releases/download/"
+                "sample-worker-v1.0.0/sample-worker-1.0.0.zip"
+            )
+            with mock.patch.object(build_index, "CATALOG_ROOT", catalog_root):
+                self.assertEqual(
+                    build_index._validate_worker_release_url(
+                        url, origin="community", manifest=manifest, path=path
+                    ),
+                    url,
+                )
+                official_namespace = dict(
+                    manifest, id="org.pupujiang.sample-worker"
+                )
+                with self.assertRaises(build_index.ValidationError):
+                    build_index._validate_worker_release_url(
+                        url,
+                        origin="community",
+                        manifest=official_namespace,
+                        path=path,
+                    )
+
+
+class WorkerArchiveValidationTests(unittest.TestCase):
+    def test_neutral_worker_archive_is_validated_without_execution(self) -> None:
+        manifest = build_index._validate_worker_archive(
+            _worker_archive(), dict(WORKER_MANIFEST)
+        )
+
+        self.assertEqual(manifest, WORKER_MANIFEST)
+
+    def test_worker_archive_rejects_traversal_symlink_and_compression_bomb(self) -> None:
+        for archive in (
+            _worker_archive(extra_files={"../escape.py": b"pass"}),
+            _worker_archive(symlink=True),
+            _worker_archive(extra_files={"worker/bad.py": b"def nope(:\n"}),
+            _worker_archive(
+                extra_files={"worker/bomb.py": b"A" * 200_000},
+                compression=zipfile.ZIP_DEFLATED,
+            ),
+        ):
+            with self.subTest(size=len(archive)), self.assertRaises(
+                build_index.ValidationError
+            ):
+                build_index._validate_worker_archive(
+                    archive, dict(WORKER_MANIFEST)
+                )
+
+    def test_worker_archive_rejects_bad_manifest_and_unavailable_entrypoint(self) -> None:
+        invalid_manifest = dict(WORKER_MANIFEST, schema_version=1)
+        missing_entrypoint = dict(WORKER_MANIFEST, entrypoint="missing:run")
+        for archive, manifest in (
+            (_worker_archive(invalid_manifest), invalid_manifest),
+            (_worker_archive(missing_entrypoint), missing_entrypoint),
+        ):
+            with self.subTest(manifest=manifest), self.assertRaises(
+                build_index.ValidationError
+            ):
+                build_index._validate_worker_archive(archive, manifest)
+
+    def test_worker_release_size_and_digest_must_match_exact_bytes(self) -> None:
+        package = _worker_archive()
+        digest = hashlib.sha256(package).hexdigest()
+        build_index._verify_worker_asset(
+            package,
+            manifest=dict(WORKER_MANIFEST),
+            expected_size=len(package),
+            expected_sha256=digest,
+        )
+        with self.assertRaisesRegex(build_index.ValidationError, "size"):
+            build_index._verify_worker_asset(
+                package,
+                manifest=dict(WORKER_MANIFEST),
+                expected_size=len(package) + 1,
+                expected_sha256=digest,
+            )
+        with self.assertRaisesRegex(build_index.ValidationError, "SHA-256"):
+            build_index._verify_worker_asset(
+                package,
+                manifest=dict(WORKER_MANIFEST),
+                expected_size=len(package),
+                expected_sha256="0" * 64,
+            )
+
+
+class WorkerCatalogIndexTests(unittest.TestCase):
+    def test_workers_are_optional_and_existing_plugins_remain_unchanged(self) -> None:
+        checked_in = build_index._load_index(build_index.INDEX_PATH)
+        self.assertIn("plugins", checked_in)
+        self.assertEqual(build_index._collect_worker_entries(verify_assets=False), [])
+        generated = build_index._generated_index(
+            checked_in["plugins"], [{"origin": "official", "manifest": WORKER_MANIFEST}]
+        )
+        self.assertEqual(generated["plugins"], checked_in["plugins"])
+        self.assertEqual(len(generated["workers"]), 1)
+
+    def test_cross_catalog_identity_version_and_source_conflicts_are_rejected(self) -> None:
+        plugin = {
+            "origin": "official",
+            "manifest": {"id": OFFICIAL_WORKER_ID, "version": "1.0.0"},
+            "package_url": "https://example.test/plugin.zip",
+        }
+        worker = {
+            "origin": "community",
+            "manifest": {"id": OFFICIAL_WORKER_ID, "version": "2.0.0"},
+            "package_url": "https://example.test/worker.zip",
+        }
+        with self.assertRaisesRegex(build_index.ValidationError, "id"):
+            build_index._check_cross_catalog_conflicts([plugin], [worker])
+
+        worker = {
+            "origin": "official",
+            "manifest": {"id": "org.pupujiang.other-worker", "version": "1.0.0"},
+            "package_url": plugin["package_url"],
+        }
+        with self.assertRaisesRegex(build_index.ValidationError, "source"):
+            build_index._check_cross_catalog_conflicts([plugin], [worker])
 
 
 if __name__ == "__main__":

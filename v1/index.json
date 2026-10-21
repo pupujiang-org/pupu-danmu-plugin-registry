@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-19T14:04:11Z",
+  "generated_at": "2026-10-21T01:54:00Z",
   "plugins": [
     {
       "origin": "official",
@@ -145,5 +145,6 @@
       "sha256": "cafe9828c758cde66b5eafecabee3d8796a58416385b685cca420225252230ca",
       "package_size": 1914
     }
-  ]
+  ],
+  "workers": []
 }

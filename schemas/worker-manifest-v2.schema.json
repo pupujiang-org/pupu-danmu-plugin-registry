@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pupujiang-org.github.io/pupu-danmu-plugin-registry/schemas/worker-manifest-v2.schema.json",
+  "title": "Pupu Danmu Python Worker manifest schema v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "name", "version", "description", "author", "license", "min_host_version", "kind", "runtime_type", "plugin_api_version", "capabilities", "config_schema", "recommended_pacing", "resources", "entrypoint"],
+  "properties": {
+    "schema_version": {"const": 2},
+    "id": {"type": "string", "pattern": "^(?:[a-z][a-z0-9-]*\\.){2,}[a-z0-9][a-z0-9-]*$", "maxLength": 128},
+    "name": {"type": "string", "minLength": 1, "maxLength": 100},
+    "version": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$", "maxLength": 80},
+    "description": {"type": "string", "minLength": 1, "maxLength": 500},
+    "author": {"type": "string", "minLength": 1, "maxLength": 100},
+    "license": {"type": "string", "minLength": 1, "maxLength": 100},
+    "min_host_version": {"type": "string", "pattern": "^(?:[0-9]+!)?(?:0|[1-9][0-9]*)(?:\\.(?:0|[1-9][0-9]*))*(?:(?:a|b|rc)[0-9]+)?(?:\\.post[0-9]+)?(?:\\.dev[0-9]+)?(?:\\+[a-z0-9]+(?:\\.[a-z0-9]+)*)?$", "maxLength": 80},
+    "kind": {"const": "ai-participation"},
+    "runtime_type": {"const": "python-worker"},
+    "plugin_api_version": {"const": 2},
+    "capabilities": {"type": "array", "uniqueItems": true, "maxItems": 5, "items": {"enum": ["chat.read", "room.read", "session.config.read", "llm.generate", "storage.session"]}},
+    "config_schema": {
+      "type": "object", "maxProperties": 32,
+      "propertyNames": {"pattern": "^[a-z][a-z0-9_]{0,47}$"},
+      "additionalProperties": {"oneOf": [{"$ref": "#/$defs/text-field"}, {"$ref": "#/$defs/select-field"}, {"$ref": "#/$defs/checkbox-field"}, {"$ref": "#/$defs/number-field"}]}
+    },
+    "recommended_pacing": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "min_interval_seconds": {"type": "integer", "minimum": 1, "maximum": 3600},
+        "max_interval_seconds": {"type": "integer", "minimum": 1, "maximum": 3600},
+        "hourly_limit": {"type": "integer", "minimum": 1, "maximum": 240}
+      }
+    },
+    "resources": {
+      "type": "object", "maxProperties": 4,
+      "properties": {
+        "personas": {"const": "personas.json"},
+        "topics": {"const": "topics.json"},
+        "participation": {"const": "participation.json"},
+        "prompt": {"type": "string", "pattern": "^prompts/(?!\\.)[A-Za-z0-9_-][A-Za-z0-9._-]*\\.(?:txt|md)$"}
+      },
+      "additionalProperties": false
+    },
+    "entrypoint": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*:[A-Za-z_][A-Za-z0-9_]*$", "maxLength": 160}
+  },
+  "$defs": {
+    "field-base": {"type": "object", "required": ["type", "label"], "properties": {"type": {"type": "string"}, "label": {"type": "string", "minLength": 1, "maxLength": 80}, "description": {"type": "string", "maxLength": 300}, "required": {"type": "boolean"}}},
+    "text-field": {"allOf": [{"$ref": "#/$defs/field-base"}], "additionalProperties": false, "properties": {"type": {"const": "text"}, "label": {"type": "string", "minLength": 1, "maxLength": 80}, "description": {"type": "string", "maxLength": 300}, "required": {"type": "boolean"}, "default": {"type": "string", "maxLength": 500}, "min_length": {"type": "integer", "minimum": 0, "maximum": 500}, "max_length": {"type": "integer", "minimum": 1, "maximum": 500}}},
+    "select-field": {"allOf": [{"$ref": "#/$defs/field-base"}], "required": ["type", "label", "options"], "additionalProperties": false, "properties": {"type": {"const": "select"}, "label": {"type": "string", "minLength": 1, "maxLength": 80}, "description": {"type": "string", "maxLength": 300}, "required": {"type": "boolean"}, "default": {"type": "string", "maxLength": 80}, "options": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 80}}}},
+    "checkbox-field": {"allOf": [{"$ref": "#/$defs/field-base"}], "additionalProperties": false, "properties": {"type": {"const": "checkbox"}, "label": {"type": "string", "minLength": 1, "maxLength": 80}, "description": {"type": "string", "maxLength": 300}, "required": {"type": "boolean"}, "default": {"type": "boolean"}}},
+    "number-field": {"allOf": [{"$ref": "#/$defs/field-base"}], "required": ["type", "label", "minimum", "maximum"], "additionalProperties": false, "properties": {"type": {"const": "number"}, "label": {"type": "string", "minLength": 1, "maxLength": 80}, "description": {"type": "string", "maxLength": 300}, "required": {"type": "boolean"}, "default": {"type": "number"}, "minimum": {"type": "number"}, "maximum": {"type": "number"}}}
+  }
+}
