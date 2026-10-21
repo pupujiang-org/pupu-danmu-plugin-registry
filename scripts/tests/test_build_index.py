@@ -561,12 +561,23 @@ class WorkerCatalogIndexTests(unittest.TestCase):
     def test_workers_are_optional_and_existing_plugins_remain_unchanged(self) -> None:
         checked_in = build_index._load_index(build_index.INDEX_PATH)
         self.assertIn("plugins", checked_in)
-        self.assertEqual(build_index._collect_worker_entries(verify_assets=False), [])
-        generated = build_index._generated_index(
-            checked_in["plugins"], [{"origin": "official", "manifest": WORKER_MANIFEST}]
-        )
+        plugins = build_index._collect_entries(verify_assets=False)
+        workers = build_index._collect_worker_entries(verify_assets=False)
+        self.assertEqual(checked_in["plugins"], plugins)
+        self.assertEqual(checked_in["workers"], workers)
+        self.assertEqual(len(workers), 1)
+        self.assertEqual(workers[0]["manifest"]["version"], "1.3.0")
+        generated = build_index._generated_index(plugins, workers)
         self.assertEqual(generated["plugins"], checked_in["plugins"])
-        self.assertEqual(len(generated["workers"]), 1)
+        self.assertEqual(generated["workers"], checked_in["workers"])
+
+        legacy_index = {
+            key: value for key, value in checked_in.items() if key != "workers"
+        }
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            path = Path(temporary_dir) / "legacy-index.json"
+            path.write_text(json.dumps(legacy_index), encoding="utf-8")
+            self.assertEqual(build_index._load_index(path)["workers"], [])
 
     def test_cross_catalog_versions_and_runtime_conflicts_are_explicit(self) -> None:
         plugin = {
