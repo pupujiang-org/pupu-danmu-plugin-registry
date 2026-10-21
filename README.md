@@ -18,7 +18,7 @@ The public index is served at:
 - `scripts/spdx-license-ids.json`: the known SPDX license and exception identifiers used to validate declared package licenses.
 - `.github/workflows/pages.yml`: builds and deploys the index from `main`.
 
-The index keeps the existing `plugins` array and includes a `workers` array, empty until a Worker package has been reviewed. Registry merge does not imply that the host application has completed physical UI or real-room acceptance, or that catalogued Worker code is enabled for execution.
+The index keeps the existing `plugins` array and includes a `workers` array, empty until a Worker package has been reviewed. A plugin ID may have one current release in each runtime family, so a declarative release and a Worker release can coexist at different versions. The exact `(manifest.id, manifest.version)` pair must be unique across both arrays, and each array's runtime type is checked; this makes an exact session pin resolve to one runtime. Registry merge does not imply that the host application has completed physical UI or real-room acceptance, or that catalogued Worker code is enabled for execution.
 
 ## Local check
 

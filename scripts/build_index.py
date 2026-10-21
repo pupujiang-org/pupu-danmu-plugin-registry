@@ -1200,21 +1200,34 @@ def _collect_worker_entries(*, verify_assets: bool) -> list[dict[str, object]]:
 def _check_cross_catalog_conflicts(
     plugins: list[dict[str, object]], workers: list[dict[str, object]]
 ) -> None:
-    seen_ids: set[str] = set()
+    seen_releases: set[tuple[str, str]] = set()
     seen_sources: set[str] = set()
-    for entry in (*plugins, *workers):
-        manifest = entry.get("manifest")
-        package_url = entry.get("package_url")
-        if not isinstance(manifest, dict) or not isinstance(manifest.get("id"), str):
-            raise ValidationError("Catalog entry identity is invalid")
-        if manifest["id"] in seen_ids:
-            raise ValidationError("duplicate catalog id across plugins and Workers")
-        seen_ids.add(manifest["id"])
-        if not isinstance(package_url, str):
-            raise ValidationError("Catalog package source is invalid")
-        if package_url in seen_sources:
-            raise ValidationError("duplicate package source across catalog entries")
-        seen_sources.add(package_url)
+    for entries, expected_runtime_type in (
+        (plugins, "declarative"),
+        (workers, "python-worker"),
+    ):
+        for entry in entries:
+            manifest = entry.get("manifest")
+            package_url = entry.get("package_url")
+            if (
+                not isinstance(manifest, dict)
+                or not isinstance(manifest.get("id"), str)
+                or not isinstance(manifest.get("version"), str)
+            ):
+                raise ValidationError("Catalog entry identity is invalid")
+            if manifest.get("runtime_type") != expected_runtime_type:
+                raise ValidationError("Catalog entry runtime type is invalid")
+            release_identity = (manifest["id"], manifest["version"])
+            if release_identity in seen_releases:
+                raise ValidationError(
+                    "duplicate catalog id/version across runtime types"
+                )
+            seen_releases.add(release_identity)
+            if not isinstance(package_url, str):
+                raise ValidationError("Catalog package source is invalid")
+            if package_url in seen_sources:
+                raise ValidationError("duplicate package source across catalog entries")
+            seen_sources.add(package_url)
 
 
 def _load_index(path: Path) -> dict[str, object]:

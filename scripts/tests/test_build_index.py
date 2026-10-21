@@ -568,23 +568,51 @@ class WorkerCatalogIndexTests(unittest.TestCase):
         self.assertEqual(generated["plugins"], checked_in["plugins"])
         self.assertEqual(len(generated["workers"]), 1)
 
-    def test_cross_catalog_identity_version_and_source_conflicts_are_rejected(self) -> None:
+    def test_cross_catalog_versions_and_runtime_conflicts_are_explicit(self) -> None:
         plugin = {
             "origin": "official",
-            "manifest": {"id": OFFICIAL_WORKER_ID, "version": "1.0.0"},
+            "manifest": {
+                "id": OFFICIAL_WORKER_ID,
+                "version": "1.2.0",
+                "runtime_type": "declarative",
+            },
             "package_url": "https://example.test/plugin.zip",
         }
         worker = {
-            "origin": "community",
-            "manifest": {"id": OFFICIAL_WORKER_ID, "version": "2.0.0"},
+            "origin": "official",
+            "manifest": {
+                "id": OFFICIAL_WORKER_ID,
+                "version": "1.3.0",
+                "runtime_type": "python-worker",
+            },
             "package_url": "https://example.test/worker.zip",
         }
-        with self.assertRaisesRegex(build_index.ValidationError, "id"):
-            build_index._check_cross_catalog_conflicts([plugin], [worker])
+        build_index._check_cross_catalog_conflicts([plugin], [worker])
+
+        conflicting_worker = {
+            **worker,
+            "manifest": {
+                **worker["manifest"],
+                "version": plugin["manifest"]["version"],
+            },
+        }
+        with self.assertRaisesRegex(build_index.ValidationError, "id/version"):
+            build_index._check_cross_catalog_conflicts([plugin], [conflicting_worker])
+
+        invalid_runtime = {
+            **worker,
+            "manifest": {**worker["manifest"], "runtime_type": "declarative"},
+        }
+        with self.assertRaisesRegex(build_index.ValidationError, "runtime type"):
+            build_index._check_cross_catalog_conflicts([], [invalid_runtime])
 
         worker = {
             "origin": "official",
-            "manifest": {"id": "org.pupujiang.other-worker", "version": "1.0.0"},
+            "manifest": {
+                "id": "org.pupujiang.other-worker",
+                "version": "1.0.0",
+                "runtime_type": "python-worker",
+            },
             "package_url": plugin["package_url"],
         }
         with self.assertRaisesRegex(build_index.ValidationError, "source"):
