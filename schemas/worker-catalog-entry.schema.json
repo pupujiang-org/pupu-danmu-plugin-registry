@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pupujiang-org.github.io/pupu-danmu-plugin-registry/schemas/worker-catalog-entry.schema.json",
+  "title": "Pupu Danmu Python Worker Catalog entry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["origin", "manifest", "package_url", "sha256", "package_size"],
+  "properties": {
+    "origin": {"enum": ["official", "community"]},
+    "manifest": {"$ref": "worker-manifest-v2.schema.json"},
+    "package_url": {"type": "string", "format": "uri", "pattern": "^https://github\\.com/[^/]+/[^/]+/releases/download/[^/]+/[^/]+\\.zip$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "package_size": {"type": "integer", "minimum": 1, "maximum": 20971520}
+  }
+}
